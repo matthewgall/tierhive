@@ -1,25 +1,45 @@
-#!/bin/bash
+#!/bin/sh
 
-# Exit immediately on error, treat unset variables as errors, and catch
-# pipeline failures.
-set -euo pipefail
+# Exit immediately on error and treat unset variables as errors.
+set -eu
 
-exec > >(tee -a /root/recipe.log) 2>&1
-cp "$0" /root/installScript.sh.txt
+LOG_PIPE="/tmp/runsh-log.$$"
+LOG_PID=""
+
+start_logging() {
+    mkfifo "$LOG_PIPE"
+    tee -a /root/recipe.log < "$LOG_PIPE" &
+    LOG_PID=$!
+    exec > "$LOG_PIPE" 2>&1
+}
+
+cleanup() {
+    rc=$1
+    # Do not let cleanup errors mask the original exit status.
+    set +e
+    if [ "$rc" -ne 0 ]; then
+        echo "ERROR: Recipe failed with exit code $rc" >&2
+    fi
+    # Detach from the FIFO before tearing it down so the kill itself
+    # does not fail with SIGPIPE.
+    exec >/dev/null 2>&1
+    if [ -n "$LOG_PID" ]; then
+        kill "$LOG_PID" 2>/dev/null
+    fi
+    rm -f "$LOG_PIPE"
+}
+
+start_logging
+trap 'cleanup $?' EXIT
+
+# When run via curl | sh, $0 is "sh" rather than the script path.
+[ -f "$0" ] && cp "$0" /root/installScript.sh.txt
 
 echo '######################################'
 echo '#                                    #'
 echo '#             Optimising             #'
 echo '#                                    #'
 echo '######################################'
-
-cleanup() {
-    local rc=$?
-    if [ "$rc" -ne 0 ]; then
-        echo "ERROR: Recipe failed with exit code $rc" >&2
-    fi
-}
-trap cleanup EXIT
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "ERROR: This script must be run as root." >&2
@@ -32,7 +52,13 @@ if [ -z "$swapSize" ]; then
     echo "ERROR: swap_size variable is not set." >&2
     exit 1
 fi
-if ! [[ "$swapSize" =~ ^[0-9]+$ ]] || [ "$swapSize" -le 0 ]; then
+case "$swapSize" in
+    ''|*[!0-9]*)
+        echo "ERROR: swap_size must be a positive integer (MB). Got: '$swapSize'" >&2
+        exit 1
+        ;;
+esac
+if [ "$swapSize" -le 0 ]; then
     echo "ERROR: swap_size must be a positive integer (MB). Got: '$swapSize'" >&2
     exit 1
 fi
@@ -40,17 +66,17 @@ fi
 swapFile="/swapfile"
 
 backup_file() {
-    local file="$1"
+    file=$1
     if [ -f "$file" ]; then
-        local backup="${file}.bak_$(date +%Y%m%d_%H%M%S)"
+        backup="${file}.bak_$(date +%Y%m%d_%H%M%S)"
         cp -a "$file" "$backup"
         echo "Backed up $file -> $backup"
     fi
 }
 
 ensure_kernel_opt() {
-    local opt="$1"
-    local file="$2"
+    opt=$1
+    file=$2
 
     if ! grep -qE '^default_kernel_opts=' "$file"; then
         echo "ERROR: default_kernel_opts not found in $file" >&2
