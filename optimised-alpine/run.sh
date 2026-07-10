@@ -225,6 +225,32 @@ echo "Regenerating initramfs..."
 mkinitfs
 
 #
+# Time services
+#
+echo "---------------------------------"
+echo "Replacing chronyd with ntpd"
+echo "---------------------------------"
+
+if [ -f /etc/init.d/chronyd ]; then
+    rc-service chronyd stop 2>/dev/null || true
+    rc-update del chronyd default 2>/dev/null || true
+fi
+
+for pkg in chrony chrony-openrc; do
+    if apk info -e "$pkg" >/dev/null 2>&1; then
+        apk del "$pkg"
+    fi
+done
+
+if [ -f /etc/init.d/ntpd ]; then
+    rc-update add ntpd default
+    rc-service ntpd start 2>/dev/null || true
+    echo "ntpd enabled for default runlevel."
+else
+    echo "Warning: ntpd service not found; skipping enable." >&2
+fi
+
+#
 # Swap configuration
 #
 echo "---------------------------------"
