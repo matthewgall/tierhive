@@ -68,9 +68,13 @@ swapFile="/swapfile"
 backup_file() {
     file=$1
     if [ -f "$file" ]; then
-        backup="${file}.bak_$(date +%Y%m%d_%H%M%S)"
-        cp -a "$file" "$backup"
-        echo "Backed up $file -> $backup"
+        backup="${file}.bak"
+        if [ -f "$backup" ]; then
+            echo "Backup already exists at $backup; skipping."
+        else
+            cp -a "$file" "$backup"
+            echo "Backed up $file -> $backup"
+        fi
     fi
 }
 
@@ -221,37 +225,8 @@ kernel.watchdog = 0
 vm.swappiness = 70
 EOF
 
-echo "Regenerating initramfs..."
-mkinitfs
-
 #
-# Time services
-#
-echo "---------------------------------"
-echo "Replacing chronyd with ntpd"
-echo "---------------------------------"
-
-if [ -f /etc/init.d/chronyd ]; then
-    rc-service chronyd stop 2>/dev/null || true
-    rc-update del chronyd default 2>/dev/null || true
-fi
-
-for pkg in chrony chrony-openrc; do
-    if apk info -e "$pkg" >/dev/null 2>&1; then
-        apk del "$pkg"
-    fi
-done
-
-if [ -f /etc/init.d/ntpd ]; then
-    rc-update add ntpd default
-    rc-service ntpd start 2>/dev/null || true
-    echo "ntpd enabled for default runlevel."
-else
-    echo "Warning: ntpd service not found; skipping enable." >&2
-fi
-
-#
-# Swap configuration
+# Swap configuration (do this early so later memory-heavy steps have backing)
 #
 echo "---------------------------------"
 echo "Checking swap status"
@@ -260,11 +235,15 @@ echo "---------------------------------"
 if [ -e "$swapFile" ]; then
     if awk 'NR>1 {print $1}' /proc/swaps | grep -qx "$swapFile"; then
         echo "Swap file already active at $swapFile; skipping creation."
+    elif swapon "$swapFile" 2>/dev/null; then
+        echo "Activated existing swap file at $swapFile."
     else
-        echo "ERROR: $swapFile exists but is not active. Aborting to avoid data loss." >&2
-        exit 1
+        echo "Existing $swapFile is not a valid swap file; replacing."
+        rm -f "$swapFile"
     fi
-else
+fi
+
+if [ ! -e "$swapFile" ]; then
     available_mb=$(df -m / | awk 'NR==2 {print $4}')
     if [ "$available_mb" -lt "$(( swapSize + 100 ))" ]; then
         echo "ERROR: Not enough disk space. Needed: $(( swapSize + 100 )) MB, available: $available_mb MB" >&2
@@ -295,6 +274,40 @@ else
 fi
 
 free -h
+sync
+
+#
+# Memory-heavy steps now have swap backing
+#
+echo "Regenerating initramfs..."
+mkinitfs
+
+#
+# Time services
+#
+echo "---------------------------------"
+echo "Replacing chronyd with ntpd"
+echo "---------------------------------"
+
+if [ -f /etc/init.d/chronyd ]; then
+    rc-service chronyd stop </dev/null 2>/dev/null || true
+    rc-update del chronyd default </dev/null 2>/dev/null || true
+    echo "chronyd removed from default runlevel."
+fi
+
+for pkg in chrony chrony-openrc; do
+    if apk info -e "$pkg" >/dev/null 2>&1; then
+        apk del "$pkg" </dev/null 2>/dev/null || true
+    fi
+done
+
+if [ -f /etc/init.d/ntpd ]; then
+    rc-update add ntpd default </dev/null 2>/dev/null || true
+    rc-service ntpd start </dev/null 2>/dev/null || true
+    echo "ntpd enabled for default runlevel."
+else
+    echo "Warning: ntpd service not found; skipping enable." >&2
+fi
 
 #
 # Enable zswap
