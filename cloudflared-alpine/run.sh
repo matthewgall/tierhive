@@ -42,10 +42,15 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Optional TierHive variables: cloudflared_version, cloudflare_token
+# Optional TierHive variables: cloudflared_name, cloudflared_version, cloudflare_token
 DEFAULT_CLOUDFLARED_VERSION="2026.7.1"
+cloudflared_name=${cloudflared_name:-cloudflared}
 cloudflared_version=${cloudflared_version:-$DEFAULT_CLOUDFLARED_VERSION}
 token_value=${cloudflare_token:-}
+
+SVC_FILE="/etc/init.d/${cloudflared_name}"
+CONF_FILE="/etc/conf.d/${cloudflared_name}"
+RUNLEVEL_LINK="/etc/runlevels/default/${cloudflared_name}"
 
 download() {
     url=$1
@@ -77,27 +82,32 @@ BIN_DIR="/usr/local/bin"
 BIN_PATH="${BIN_DIR}/cloudflared"
 DOWNLOAD_URL="https://github.com/cloudflare/cloudflared/releases/download/${cloudflared_version}/cloudflared-linux-${ARCH}"
 
-echo "Downloading cloudflared ${cloudflared_version} for linux-${ARCH}..."
-TMP_PATH="${BIN_PATH}.tmp"
-download "$DOWNLOAD_URL" "$TMP_PATH"
-chmod +x "$TMP_PATH"
+# Only download the binary if it is missing or not the requested version.
+if [ -x "$BIN_PATH" ] && "$BIN_PATH" --version 2>/dev/null | grep -q "$cloudflared_version"; then
+    echo "cloudflared ${cloudflared_version} already installed at $BIN_PATH; skipping download."
+else
+    echo "Downloading cloudflared ${cloudflared_version} for linux-${ARCH}..."
+    TMP_PATH="${BIN_PATH}.tmp"
+    download "$DOWNLOAD_URL" "$TMP_PATH"
+    chmod +x "$TMP_PATH"
 
-if ! "$TMP_PATH" --version >/dev/null 2>&1; then
-    echo "ERROR: Downloaded binary does not execute." >&2
-    rm -f "$TMP_PATH"
-    exit 1
+    if ! "$TMP_PATH" --version >/dev/null 2>&1; then
+        echo "ERROR: Downloaded binary does not execute." >&2
+        rm -f "$TMP_PATH"
+        exit 1
+    fi
+
+    mv "$TMP_PATH" "$BIN_PATH"
+    echo "Installed cloudflared at $BIN_PATH"
 fi
-
-mv "$TMP_PATH" "$BIN_PATH"
-echo "Installed cloudflared at $BIN_PATH"
 "$BIN_PATH" --version
 
-echo "Installing OpenRC service..."
-cat > /etc/init.d/cloudflared << 'EOF'
+echo "Installing OpenRC service '${cloudflared_name}'..."
+cat > "$SVC_FILE" << 'EOF'
 #!/sbin/openrc-run
 
-name="cloudflared"
-description="Cloudflare Tunnel"
+name="${RC_SVCNAME}"
+description="Cloudflare Tunnel (${RC_SVCNAME})"
 command="/usr/local/bin/cloudflared"
 command_args="tunnel --no-autoupdate run --token ${token}"
 command_user="root"
@@ -111,41 +121,41 @@ depend() {
 
 start_pre() {
     if [ -z "${token:-}" ]; then
-        eerror "token is not set in /etc/conf.d/cloudflared"
+        eerror "token is not set in /etc/conf.d/${RC_SVCNAME}"
         return 1
     fi
 }
 EOF
-chmod +x /etc/init.d/cloudflared
+chmod +x "$SVC_FILE"
 
-if [ ! -f /etc/conf.d/cloudflared ]; then
-    cat > /etc/conf.d/cloudflared << 'EOF'
-# Cloudflare Tunnel token.
+if [ ! -f "$CONF_FILE" ]; then
+    cat > "$CONF_FILE" << 'EOF'
+# Cloudflare Tunnel token for this instance.
 # Get your token from the Cloudflare Zero Trust dashboard:
 # https://one.dash.cloudflare.com/
 token=""
 EOF
-    echo "Created default config at /etc/conf.d/cloudflared"
+    echo "Created default config at $CONF_FILE"
 fi
 
 if [ -n "$token_value" ]; then
-    sed -i "s/^token=.*/token=\"$token_value\"/" /etc/conf.d/cloudflared
-    echo "Set cloudflared token from environment."
+    sed -i "s/^token=.*/token=\"$token_value\"/" "$CONF_FILE"
+    echo "Set token for '${cloudflared_name}' from environment."
 fi
 
-if [ -L /etc/runlevels/default/cloudflared ]; then
-    echo "cloudflared already in default runlevel."
+if [ -L "$RUNLEVEL_LINK" ]; then
+    echo "'${cloudflared_name}' already in default runlevel."
 else
-    rc-update add cloudflared default
-    echo "cloudflared added to default runlevel."
+    rc-update add "$cloudflared_name" default
+    echo "'${cloudflared_name}' added to default runlevel."
 fi
 
 if [ -n "$token_value" ]; then
-    echo "Starting cloudflared..."
-    rc-service cloudflared restart 2>/dev/null || true
+    echo "Starting '${cloudflared_name}'..."
+    rc-service "$cloudflared_name" restart 2>/dev/null || true
 fi
 
 echo "Installation complete."
 if [ -z "$token_value" ]; then
-    echo "Set your token in /etc/conf.d/cloudflared, then run: rc-service cloudflared start"
+    echo "Set your token in $CONF_FILE, then run: rc-service ${cloudflared_name} start"
 fi
