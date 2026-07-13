@@ -67,7 +67,22 @@ BIN_PATH="/usr/local/bin/netbird"
 DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/${VERSION}/netbird_${VERSION#v}_linux_${ARCH}.tar.gz"
 
 if [ ! -c /dev/net/tun ]; then
-    echo "Warning: /dev/net/tun is not available. Netbird requires a TUN device." >&2
+    echo "TUN device not present; attempting to load the tun module..."
+    if modprobe tun 2>/dev/null; then
+        echo "Loaded tun module."
+    fi
+fi
+
+if [ ! -c /dev/net/tun ]; then
+    echo "ERROR: /dev/net/tun is not available." >&2
+    echo "Netbird requires a TUN device. Please ask your hosting provider (TierHive) to enable TUN/TAP support, then re-run this script." >&2
+    exit 1
+fi
+
+# Ensure tun loads on boot.
+if [ ! -f /etc/modules-load.d/tun.conf ] || ! grep -qx "tun" /etc/modules-load.d/tun.conf; then
+    echo "tun" > /etc/modules-load.d/tun.conf
+    echo "Configured tun module to load on boot."
 fi
 
 download() {
