@@ -131,8 +131,10 @@ echo "Starting Netbird service..."
 "$BIN_PATH" service start 2>/dev/null || true
 
 if [ -n "$setup_key" ]; then
-    echo "Running netbird up with setup key..."
-    "$BIN_PATH" up --setup-key "$setup_key"
+    echo "Running netbird login with setup key..."
+    HOME=/root "$BIN_PATH" login --setup-key "$setup_key"
+    echo "Running netbird up..."
+    HOME=/root "$BIN_PATH" up
     echo "Netbird up completed."
 else
     echo "No setup key provided. Run: netbird up --setup-key YOUR_KEY"
