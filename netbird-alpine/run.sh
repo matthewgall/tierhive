@@ -1,0 +1,126 @@
+#!/bin/sh
+
+# Exit immediately on error and treat unset variables as errors.
+set -eu
+
+LOG_PIPE="/tmp/netbird-runsh-log.$$"
+LOG_PID=""
+
+start_logging() {
+    mkfifo "$LOG_PIPE"
+    tee -a /root/netbird-install.log < "$LOG_PIPE" &
+    LOG_PID=$!
+    exec > "$LOG_PIPE" 2>&1
+}
+
+cleanup() {
+    rc=$1
+    set +e
+    if [ "$rc" -ne 0 ]; then
+        echo "ERROR: Recipe failed with exit code $rc" >&2
+    fi
+    exec >/dev/null 2>&1
+    if [ -n "$LOG_PID" ]; then
+        kill "$LOG_PID" 2>/dev/null
+    fi
+    rm -f "$LOG_PIPE"
+}
+
+start_logging
+trap 'cleanup $?' EXIT
+
+[ -f "$0" ] && cp "$0" /root/netbird-installScript.sh.txt
+
+echo '######################################'
+echo '#                                    #'
+echo '#         Installing Netbird         #'
+echo '#                                    #'
+echo '######################################'
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: This script must be run as root." >&2
+    exit 1
+fi
+
+# Optional TierHive variables: netbird_version, netbird_setup_key
+DEFAULT_NETBIRD_VERSION="0.74.4"
+netbird_version=${netbird_version:-$DEFAULT_NETBIRD_VERSION}
+setup_key=${netbird_setup_key:-}
+
+# Normalise version to include a leading 'v' internally.
+case "$netbird_version" in
+    v*) VERSION="$netbird_version" ;;
+    *) VERSION="v$netbird_version" ;;
+esac
+
+case "$(uname -m)" in
+    x86_64|amd64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    i?86|x86) ARCH=386 ;;
+    *)
+        echo "ERROR: Unsupported architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+
+BIN_PATH="/usr/local/bin/netbird"
+DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/${VERSION}/netbird_${VERSION#v}_linux_${ARCH}.tar.gz"
+
+if [ ! -c /dev/net/tun ]; then
+    echo "Warning: /dev/net/tun is not available. Netbird requires a TUN device." >&2
+fi
+
+download() {
+    url=$1
+    dest=$2
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL -o "$dest" "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "$dest" "$url"
+    else
+        echo "ERROR: curl or wget is required to download Netbird." >&2
+        exit 1
+    fi
+}
+
+# Only download the binary if it is missing or not the requested version.
+if [ -x "$BIN_PATH" ] && "$BIN_PATH" version 2>/dev/null | grep -q "${VERSION#v}"; then
+    echo "Netbird ${VERSION} already installed at $BIN_PATH; skipping download."
+else
+    echo "Downloading Netbird ${VERSION} for linux-${ARCH}..."
+    TMP_DIR="/tmp/netbird-install.$$"
+    mkdir -p "$TMP_DIR"
+    download "$DOWNLOAD_URL" "$TMP_DIR/netbird.tar.gz"
+    tar -xzf "$TMP_DIR/netbird.tar.gz" -C "$TMP_DIR"
+    chmod +x "$TMP_DIR/netbird"
+    mv "$TMP_DIR/netbird" "$BIN_PATH"
+    rm -rf "$TMP_DIR"
+    echo "Installed Netbird at $BIN_PATH"
+fi
+
+"$BIN_PATH" version
+
+echo "Installing Netbird service..."
+if [ -f /etc/init.d/netbird ]; then
+    echo "Netbird service already installed."
+else
+    "$BIN_PATH" service install
+fi
+
+if [ ! -L /etc/runlevels/default/netbird ]; then
+    rc-update add netbird default
+    echo "Netbird added to default runlevel."
+fi
+
+echo "Starting Netbird service..."
+"$BIN_PATH" service start 2>/dev/null || true
+
+if [ -n "$setup_key" ]; then
+    echo "Running netbird up with setup key..."
+    "$BIN_PATH" up --setup-key "$setup_key"
+    echo "Netbird up completed."
+else
+    echo "No setup key provided. Run: netbird up --setup-key YOUR_KEY"
+fi
+
+echo "Installation complete."

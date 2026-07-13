@@ -11,10 +11,13 @@ All scripts are written for **Alpine Linux** and assume they are run as **root**
 ```
 tierhive/
 ├── optimised-alpine/
-│   └── run.sh      # Harden and optimise Alpine 3.24.x for low-RAM headless servers
+│   └── run.sh           # Harden and optimise Alpine 3.24.x for low-RAM headless servers
 ├── cloudflared-alpine/
-│   ├── run.sh      # Install cloudflared with an OpenRC service
-│   └── uninstall.sh # Remove a cloudflared instance
+│   ├── run.sh           # Install cloudflared with an OpenRC service
+│   └── uninstall.sh     # Remove a cloudflared instance
+├── netbird-alpine/
+│   ├── run.sh           # Install Netbird VPN/mesh agent
+│   └── uninstall.sh     # Remove Netbird
 └── README.md
 ```
 
@@ -125,6 +128,47 @@ cloudflared_name=cloudflared-web cloudflared_version=2026.7.1 cloudflare_token=Y
 - The service will fail to start with a clear error if `token` is empty in its config file.
 - The script will not overwrite an existing token unless `cloudflare_token` is supplied.
 - The binary is only re-downloaded if it is missing or not the requested version, so re-running the script to add another tunnel is fast.
+
+## `netbird-alpine/run.sh`
+
+Installs the [Netbird](https://github.com/netbirdio/netbird) agent on Alpine Linux using the official release binaries. Netbird handles its own OpenRC service, so the script downloads the binary, installs/starts the service, and optionally runs `netbird up` with a setup key.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `netbird_version` | `0.74.4` | Netbird release version to install. The `v` prefix is optional. |
+| `netbird_setup_key` | *(optional)* | Setup key from the Netbird dashboard. If set, `netbird up --setup-key` is run automatically. |
+
+### Usage
+
+```bash
+# Install and connect in one step
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | \
+  netbird_setup_key=YOUR_SETUP_KEY sh
+
+# Install a specific version
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | \
+  netbird_version=0.74.4 netbird_setup_key=YOUR_SETUP_KEY sh
+
+# Install without a key, then connect manually
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | sh
+netbird up --setup-key YOUR_SETUP_KEY
+```
+
+### Notes
+
+- The binary is only re-downloaded if it is missing or not the requested version.
+- Netbird requires `/dev/net/tun`; the script warns if it is missing.
+- The `netbird service install` command creates the OpenRC init script; the recipe then ensures it is in the default runlevel.
+
+## `netbird-alpine/uninstall.sh`
+
+Removes Netbird and its OpenRC service.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/uninstall.sh | sh
+```
 
 ## `cloudflared-alpine/uninstall.sh`
 
