@@ -42,10 +42,9 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Optional TierHive variables: netbird_version, netbird_setup_key
+# Optional TierHive variable: netbird_version
 DEFAULT_NETBIRD_VERSION="0.74.4"
 netbird_version=${netbird_version:-$DEFAULT_NETBIRD_VERSION}
-setup_key=${netbird_setup_key:-}
 
 # Normalise version to include a leading 'v' internally.
 case "$netbird_version" in
@@ -63,7 +62,7 @@ case "$(uname -m)" in
         ;;
 esac
 
-BIN_PATH="/usr/local/bin/netbird"
+BIN_PATH="/usr/bin/netbird"
 DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/${VERSION}/netbird_${VERSION#v}_linux_${ARCH}.tar.gz"
 
 if [ ! -c /dev/net/tun ]; then
@@ -83,6 +82,22 @@ fi
 if [ ! -f /etc/modules-load.d/tun.conf ] || ! grep -qx "tun" /etc/modules-load.d/tun.conf; then
     echo "tun" > /etc/modules-load.d/tun.conf
     echo "Configured tun module to load on boot."
+fi
+
+# Netbird manages firewall rules using nftables.
+if ! command -v nft >/dev/null 2>&1; then
+    echo "Installing nftables..."
+    apk add --no-cache nftables
+fi
+
+if ! lsmod 2>/dev/null | grep -q "^nf_tables"; then
+    echo "Loading nf_tables module..."
+    modprobe nf_tables 2>/dev/null || true
+fi
+
+if [ ! -f /etc/modules-load.d/nf_tables.conf ] || ! grep -qx "nf_tables" /etc/modules-load.d/nf_tables.conf; then
+    echo "nf_tables" > /etc/modules-load.d/nf_tables.conf
+    echo "Configured nf_tables module to load on boot."
 fi
 
 download() {
@@ -119,25 +134,34 @@ echo "Installing Netbird service..."
 if [ -f /etc/init.d/netbird ]; then
     echo "Netbird service already installed."
 else
-    "$BIN_PATH" service install
+    HOME=/root "$BIN_PATH" service install
 fi
 
 if [ ! -L /etc/runlevels/default/netbird ]; then
     rc-update add netbird default
     echo "Netbird added to default runlevel."
-fi
-
-echo "Starting Netbird service..."
-"$BIN_PATH" service start 2>/dev/null || true
-
-if [ -n "$setup_key" ]; then
-    echo "Running netbird login with setup key..."
-    HOME=/root "$BIN_PATH" login --setup-key "$setup_key"
-    echo "Running netbird up..."
-    HOME=/root "$BIN_PATH" up
-    echo "Netbird up completed."
 else
-    echo "No setup key provided. Run: netbird up --setup-key YOUR_KEY"
+    echo "Netbird already in default runlevel."
 fi
+
+cat > /root/netbird.info.txt << 'EOF'
+Netbird has been installed and enabled.
+
+To start the daemon and connect this machine:
+
+    rc-service netbird start
+
+Then log in with your setup key:
+
+    HOME=/root netbird login --setup-key YOUR_SETUP_KEY
+    HOME=/root netbird up
+
+If you want Netbird to start automatically on boot (already enabled):
+
+    rc-update add netbird default
+
+Management URL: https://app.netbird.io
+EOF
 
 echo "Installation complete."
+echo "See /root/netbird.info.txt for next steps."

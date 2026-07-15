@@ -131,36 +131,39 @@ cloudflared_name=cloudflared-web cloudflared_version=2026.7.1 cloudflare_token=Y
 
 ## `netbird-alpine/run.sh`
 
-Installs the [Netbird](https://github.com/netbirdio/netbird) agent on Alpine Linux using the official release binaries. Netbird handles its own OpenRC service, so the script downloads the binary, installs/starts the service, and optionally runs `netbird up` with a setup key.
+Installs the [Netbird](https://github.com/netbirdio/netbird) agent on Alpine Linux using the official release binaries. Netbird handles its own OpenRC service. The script installs the binary, creates the service, enables it on boot, and leaves a `/root/netbird.info.txt` file with the manual login steps.
 
 ### Variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `netbird_version` | `0.74.4` | Netbird release version to install. The `v` prefix is optional. |
-| `netbird_setup_key` | *(optional)* | Setup key from the Netbird dashboard. If set, `netbird up --setup-key` is run automatically. |
 
 ### Usage
 
 ```bash
-# Install and connect in one step
-curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | \
-  netbird_setup_key=YOUR_SETUP_KEY sh
+# Install
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | sh
 
 # Install a specific version
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | \
-  netbird_version=0.74.4 netbird_setup_key=YOUR_SETUP_KEY sh
+  netbird_version=0.74.4 sh
+```
 
-# Install without a key, then connect manually
-curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/netbird-alpine/run.sh | sh
-netbird up --setup-key YOUR_SETUP_KEY
+After installation, follow the steps in `/root/netbird.info.txt`:
+
+```bash
+rc-service netbird start
+HOME=/root netbird login --setup-key YOUR_SETUP_KEY
+HOME=/root netbird up
 ```
 
 ### Notes
 
 - The binary is only re-downloaded if it is missing or not the requested version.
-- Netbird requires `/dev/net/tun`; the script warns if it is missing.
-- The `netbird service install` command creates the OpenRC init script; the recipe then ensures it is in the default runlevel.
+- Netbird requires `/dev/net/tun`; the script attempts to load the `tun` module and fails if it is unavailable.
+- The `nftables` package and `nf_tables` kernel module are required for Netbird’s firewall manager; the script installs and loads them.
+- The `netbird service install` command creates the OpenRC init script; the recipe then adds it to the default runlevel.
 
 ## `netbird-alpine/uninstall.sh`
 

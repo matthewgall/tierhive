@@ -40,13 +40,13 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-BIN_PATH="/usr/local/bin/netbird"
+BIN_PATH="/usr/bin/netbird"
 
 if [ -x "$BIN_PATH" ]; then
     echo "Stopping Netbird service..."
-    "$BIN_PATH" service stop 2>/dev/null || true
+    HOME=/root "$BIN_PATH" service stop 2>/dev/null || true
     echo "Uninstalling Netbird service..."
-    "$BIN_PATH" service uninstall 2>/dev/null || true
+    HOME=/root "$BIN_PATH" service uninstall 2>/dev/null || true
 fi
 
 rm -f "$BIN_PATH"
