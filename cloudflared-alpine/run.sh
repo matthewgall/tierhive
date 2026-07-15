@@ -43,7 +43,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Optional TierHive variables: cloudflared_name, cloudflared_version, cloudflare_token
-DEFAULT_CLOUDFLARED_VERSION="2026.7.1"
+DEFAULT_CLOUDFLARED_VERSION="2026.7.2"
 cloudflared_name=${cloudflared_name:-cloudflared}
 cloudflared_version=${cloudflared_version:-$DEFAULT_CLOUDFLARED_VERSION}
 token_value=${cloudflare_token:-}
