@@ -83,10 +83,20 @@ BIN_PATH="${BIN_DIR}/cloudflared"
 DOWNLOAD_URL="https://github.com/cloudflare/cloudflared/releases/download/${cloudflared_version}/cloudflared-linux-${ARCH}"
 
 # Only download the binary if it is missing or not the requested version.
-if [ -x "$BIN_PATH" ] && "$BIN_PATH" --version 2>/dev/null | grep -q "$cloudflared_version"; then
+installed_version=""
+if [ -x "$BIN_PATH" ]; then
+    installed_version=$("$BIN_PATH" --version 2>/dev/null | sed -n 's/.* \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n 1)
+fi
+
+binary_updated=0
+if [ "$installed_version" = "$cloudflared_version" ]; then
     echo "cloudflared ${cloudflared_version} already installed at $BIN_PATH; skipping download."
 else
-    echo "Downloading cloudflared ${cloudflared_version} for linux-${ARCH}..."
+    if [ -n "$installed_version" ]; then
+        echo "Upgrading cloudflared from ${installed_version} to ${cloudflared_version}..."
+    else
+        echo "Downloading cloudflared ${cloudflared_version} for linux-${ARCH}..."
+    fi
     TMP_PATH="${BIN_PATH}.tmp"
     download "$DOWNLOAD_URL" "$TMP_PATH"
     chmod +x "$TMP_PATH"
@@ -98,6 +108,7 @@ else
     fi
 
     mv "$TMP_PATH" "$BIN_PATH"
+    binary_updated=1
     echo "Installed cloudflared at $BIN_PATH"
 fi
 "$BIN_PATH" --version
@@ -113,6 +124,8 @@ command_args="tunnel --no-autoupdate run --token ${token}"
 command_user="root"
 supervisor=supervise-daemon
 pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/${RC_SVCNAME}.log"
+error_log="/var/log/${RC_SVCNAME}.log"
 
 depend() {
     need net
@@ -152,6 +165,9 @@ fi
 
 if [ -n "$token_value" ]; then
     echo "Starting '${cloudflared_name}'..."
+    rc-service "$cloudflared_name" restart 2>/dev/null || true
+elif [ "$binary_updated" -eq 1 ] && [ -L "$RUNLEVEL_LINK" ]; then
+    echo "Restarting '${cloudflared_name}' to apply the updated binary..."
     rc-service "$cloudflared_name" restart 2>/dev/null || true
 fi
 
