@@ -43,7 +43,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Optional TierHive variables: cloudflared_name, cloudflared_version, cloudflare_token
-DEFAULT_CLOUDFLARED_VERSION="2026.9.3"
+DEFAULT_CLOUDFLARED_VERSION="2026.10.0"
 cloudflared_name=${cloudflared_name:-cloudflared}
 cloudflared_version=${cloudflared_version:-$DEFAULT_CLOUDFLARED_VERSION}
 token_value=${cloudflare_token:-}
@@ -165,10 +165,10 @@ fi
 
 if [ -n "$token_value" ]; then
     echo "Starting '${cloudflared_name}'..."
-    rc-service "$cloudflared_name" restart 2>/dev/null || true
+    timeout 15 rc-service "$cloudflared_name" restart 2>/dev/null || true
 elif [ "$binary_updated" -eq 1 ] && [ -L "$RUNLEVEL_LINK" ]; then
     echo "Restarting '${cloudflared_name}' to apply the updated binary..."
-    rc-service "$cloudflared_name" restart 2>/dev/null || true
+    timeout 15 rc-service "$cloudflared_name" restart 2>/dev/null || true
 fi
 
 echo "Installation complete."
