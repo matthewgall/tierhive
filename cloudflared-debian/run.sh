@@ -48,9 +48,14 @@ if [ ! -d /run/systemd/system ] && [ ! -x /bin/systemctl ] && [ ! -x /usr/bin/sy
 fi
 
 # Optional TierHive variables: cloudflared_name, cloudflared_version, cloudflare_token
-DEFAULT_CLOUDFLARED_VERSION="2026.7.2"
 cloudflared_name=${cloudflared_name:-cloudflared}
-cloudflared_version=${cloudflared_version:-$DEFAULT_CLOUDFLARED_VERSION}
+if [ -z "${cloudflared_version:-}" ]; then
+    DEFAULT_CLOUDFLARED_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/cloudflare/cloudflared/releases/latest 2>/dev/null | sed 's|.*/||')
+    if [ -z "$DEFAULT_CLOUDFLARED_VERSION" ]; then
+        DEFAULT_CLOUDFLARED_VERSION="2026.10.0"
+    fi
+    cloudflared_version=$DEFAULT_CLOUDFLARED_VERSION
+fi
 token_value=${cloudflare_token:-}
 
 case "$(uname -m)" in

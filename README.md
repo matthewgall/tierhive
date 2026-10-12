@@ -74,7 +74,7 @@ Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Alpine Linu
 | Variable | Default | Description |
 |---|---|---|
 | `cloudflared_name` | `cloudflared` | Name of this tunnel instance. Each unique name gets its own OpenRC service and config file. |
-| `cloudflared_version` | `2026.7.1` | cloudflared release version to install. |
+| `cloudflared_version` | latest GitHub release | cloudflared release version to install. |
 | `cloudflare_token` | *(optional)* | Cloudflare Tunnel token. If set, it is written to `/etc/conf.d/${cloudflared_name}` and the service is started. |
 
 ### Usage
@@ -83,7 +83,7 @@ Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Alpine Linu
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-alpine/run.sh | \
-  cloudflared_version=2026.7.1 cloudflare_token=YOUR_TOKEN sh
+  cloudflared_version=2026.10.0 cloudflare_token=YOUR_TOKEN sh
 ```
 
 #### Multiple tunnels
@@ -113,7 +113,7 @@ rc-service cloudflared-web start
 
 ```bash
 chmod +x cloudflared-alpine/run.sh
-cloudflared_name=cloudflared-web cloudflared_version=2026.7.1 cloudflare_token=YOUR_TOKEN ./cloudflared-alpine/run.sh
+cloudflared_name=cloudflared-web cloudflared_version=2026.10.0 cloudflare_token=YOUR_TOKEN ./cloudflared-alpine/run.sh
 ```
 
 ### Architecture Mapping
@@ -141,7 +141,7 @@ Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Debian/Ubun
 | Variable | Default | Description |
 |---|---|---|
 | `cloudflared_name` | `cloudflared` | Name of this tunnel instance. Each unique name gets its own systemd service and config file. |
-| `cloudflared_version` | `2026.7.2` | cloudflared release version to install. |
+| `cloudflared_version` | latest GitHub release | cloudflared release version to install. |
 | `cloudflare_token` | *(optional)* | Cloudflare Tunnel token. If set, it is written to `/etc/default/cloudflared-${cloudflared_name}` and the service is started. |
 
 ### Usage
@@ -149,7 +149,7 @@ Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Debian/Ubun
 ```bash
 # Single default tunnel
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
-  cloudflared_version=2026.7.2 cloudflare_token=YOUR_TOKEN sh
+  cloudflared_version=2026.10.0 cloudflare_token=YOUR_TOKEN sh
 
 # Multiple named tunnels
 # First tunnel
@@ -162,7 +162,7 @@ curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflar
 
 # Upgrade
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
-  cloudflared_version=2026.8.0 sh
+  cloudflared_version=2026.10.0 sh
 ```
 
 ### Notes
