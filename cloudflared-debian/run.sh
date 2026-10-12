@@ -72,9 +72,9 @@ case "$(uname -m)" in
 esac
 
 BIN_PATH="/usr/local/bin/cloudflared"
-CONF_FILE="/etc/default/cloudflared-${cloudflared_name}"
-SERVICE_FILE="/etc/systemd/system/cloudflared-${cloudflared_name}.service"
-LOG_FILE="/var/log/cloudflared-${cloudflared_name}.log"
+CONF_FILE="/etc/default/${cloudflared_name}"
+SERVICE_FILE="/etc/systemd/system/${cloudflared_name}.service"
+LOG_FILE="/var/log/${cloudflared_name}.log"
 DOWNLOAD_URL="https://github.com/cloudflare/cloudflared/releases/download/${cloudflared_version}/cloudflared-linux-${ARCH}"
 
 download() {
@@ -159,22 +159,22 @@ fi
 
 systemctl daemon-reload
 
-if systemctl is-enabled --quiet "cloudflared-${cloudflared_name}.service" 2>/dev/null; then
+if systemctl is-enabled --quiet "${cloudflared_name}.service" 2>/dev/null; then
     echo "'${cloudflared_name}' service already enabled."
 else
-    systemctl enable "cloudflared-${cloudflared_name}.service"
+    systemctl enable "${cloudflared_name}.service"
     echo "'${cloudflared_name}' added to default target."
 fi
 
 if [ -n "$token_value" ]; then
     echo "Starting '${cloudflared_name}'..."
-    timeout 30 systemctl restart "cloudflared-${cloudflared_name}.service" || true
-elif [ "$binary_updated" -eq 1 ] && systemctl is-active --quiet "cloudflared-${cloudflared_name}.service" 2>/dev/null; then
+    timeout 30 systemctl restart "${cloudflared_name}.service" || true
+elif [ "$binary_updated" -eq 1 ] && systemctl is-active --quiet "${cloudflared_name}.service" 2>/dev/null; then
     echo "Restarting '${cloudflared_name}' to apply the updated binary..."
-    timeout 30 systemctl restart "cloudflared-${cloudflared_name}.service" || true
+    timeout 30 systemctl restart "${cloudflared_name}.service" || true
 fi
 
 echo "Installation complete."
 if [ -z "$token_value" ]; then
-    echo "Set your token in $CONF_FILE, then run: systemctl restart cloudflared-${cloudflared_name}"
+    echo "Set your token in $CONF_FILE, then run: systemctl restart ${cloudflared_name}"
 fi

@@ -142,7 +142,7 @@ Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Debian/Ubun
 |---|---|---|
 | `cloudflared_name` | `cloudflared` | Name of this tunnel instance. Each unique name gets its own systemd service and config file. |
 | `cloudflared_version` | latest GitHub release | cloudflared release version to install. |
-| `cloudflare_token` | *(optional)* | Cloudflare Tunnel token. If set, it is written to `/etc/default/cloudflared-${cloudflared_name}` and the service is started. |
+| `cloudflare_token` | *(optional)* | Cloudflare Tunnel token. If set, it is written to `/etc/default/${cloudflared_name}` and the service is started. |
 
 ### Usage
 

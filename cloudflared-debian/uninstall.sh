@@ -48,13 +48,13 @@ fi
 cloudflared_name=${cloudflared_name:-cloudflared}
 
 BIN_PATH="/usr/local/bin/cloudflared"
-CONF_FILE="/etc/default/cloudflared-${cloudflared_name}"
-SERVICE_FILE="/etc/systemd/system/cloudflared-${cloudflared_name}.service"
-LOG_FILE="/var/log/cloudflared-${cloudflared_name}.log"
+CONF_FILE="/etc/default/${cloudflared_name}"
+SERVICE_FILE="/etc/systemd/system/${cloudflared_name}.service"
+LOG_FILE="/var/log/${cloudflared_name}.log"
 
 echo "Stopping and disabling '${cloudflared_name}' service..."
-systemctl stop "cloudflared-${cloudflared_name}.service" 2>/dev/null || true
-systemctl disable "cloudflared-${cloudflared_name}.service" 2>/dev/null || true
+systemctl stop "${cloudflared_name}.service" 2>/dev/null || true
+systemctl disable "${cloudflared_name}.service" 2>/dev/null || true
 
 echo "Removing '${cloudflared_name}' files..."
 rm -f "$SERVICE_FILE"
@@ -62,7 +62,7 @@ rm -f "$CONF_FILE"
 rm -f "$LOG_FILE"
 
 # Only remove the shared binary if no other cloudflared services remain.
-remaining=$(find /etc/systemd/system -maxdepth 1 -name 'cloudflared-*.service' -type f 2>/dev/null | wc -l)
+remaining=$(find /etc/systemd/system -maxdepth 1 -name 'cloudflared*.service' -type f 2>/dev/null | wc -l)
 if [ "$remaining" -eq 0 ]; then
     rm -f "$BIN_PATH"
     echo "Removed shared binary $BIN_PATH."
