@@ -46,6 +46,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+if [ ! -x /sbin/openrc-run ] || [ ! -d /etc/init.d ]; then
+    echo "ERROR: This script is designed for Alpine Linux with OpenRC." >&2
+    exit 1
+fi
+
 # TierHive fills this in at recipe run time.
 swapSize=${swap_size:-}
 if [ -z "$swapSize" ]; then

@@ -42,6 +42,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+if [ ! -x /sbin/openrc-run ] || [ ! -d /etc/init.d ]; then
+    echo "ERROR: This script is designed for Alpine Linux with OpenRC." >&2
+    exit 1
+fi
+
 # Optional TierHive variables: cloudflared_name, cloudflared_version, cloudflare_token
 DEFAULT_CLOUDFLARED_VERSION="2026.10.0"
 cloudflared_name=${cloudflared_name:-cloudflared}
@@ -140,6 +145,8 @@ start_pre() {
 }
 EOF
 chmod +x "$SVC_FILE"
+
+mkdir -p /etc/conf.d
 
 if [ ! -f "$CONF_FILE" ]; then
     cat > "$CONF_FILE" << 'EOF'

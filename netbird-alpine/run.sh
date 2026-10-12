@@ -42,6 +42,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+if [ ! -x /sbin/openrc-run ] || [ ! -d /etc/init.d ]; then
+    echo "ERROR: This script is designed for Alpine Linux with OpenRC." >&2
+    exit 1
+fi
+
 # Optional TierHive variable: netbird_version
 DEFAULT_NETBIRD_VERSION="0.74.4"
 netbird_version=${netbird_version:-$DEFAULT_NETBIRD_VERSION}
@@ -114,10 +119,19 @@ download() {
 }
 
 # Only download the binary if it is missing or not the requested version.
-if [ -x "$BIN_PATH" ] && "$BIN_PATH" version 2>/dev/null | grep -q "${VERSION#v}"; then
+installed_version=""
+if [ -x "$BIN_PATH" ]; then
+    installed_version=$("$BIN_PATH" version 2>/dev/null | sed -n 's/.* \?\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n 1)
+fi
+
+if [ "$installed_version" = "${VERSION#v}" ]; then
     echo "Netbird ${VERSION} already installed at $BIN_PATH; skipping download."
 else
-    echo "Downloading Netbird ${VERSION} for linux-${ARCH}..."
+    if [ -n "$installed_version" ]; then
+        echo "Upgrading Netbird from ${installed_version} to ${VERSION}..."
+    else
+        echo "Downloading Netbird ${VERSION} for linux-${ARCH}..."
+    fi
     TMP_DIR="/tmp/netbird-install.$$"
     mkdir -p "$TMP_DIR"
     download "$DOWNLOAD_URL" "$TMP_DIR/netbird.tar.gz"
