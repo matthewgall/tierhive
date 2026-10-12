@@ -45,7 +45,9 @@ if [ ! -d /run/systemd/system ] && [ ! -x /bin/systemctl ] && [ ! -x /usr/bin/sy
     exit 1
 fi
 
+# Optional TierHive variables: cloudflared_name, cloudflared_purge
 cloudflared_name=${cloudflared_name:-cloudflared}
+cloudflared_purge=${cloudflared_purge:-0}
 
 BIN_PATH="/usr/local/bin/cloudflared"
 CONF_FILE="/etc/default/${cloudflared_name}"
@@ -61,13 +63,15 @@ rm -f "$SERVICE_FILE"
 rm -f "$CONF_FILE"
 rm -f "$LOG_FILE"
 
-# Only remove the shared binary if no other cloudflared services remain.
-remaining=$(find /etc/systemd/system -maxdepth 1 -name 'cloudflared*.service' -type f 2>/dev/null | wc -l)
-if [ "$remaining" -eq 0 ]; then
-    rm -f "$BIN_PATH"
-    echo "Removed shared binary $BIN_PATH."
-else
-    echo "Other cloudflared services still exist; skipping shared binary removal."
+if [ "$cloudflared_purge" = "1" ]; then
+    # Only remove the shared binary if no other cloudflared services remain.
+    remaining=$(find /etc/systemd/system -maxdepth 1 -name 'cloudflared*.service' -type f 2>/dev/null | wc -l)
+    if [ "$remaining" -eq 0 ]; then
+        rm -f "$BIN_PATH"
+        echo "Removed shared binary $BIN_PATH."
+    else
+        echo "Other cloudflared services still exist; skipping shared binary removal."
+    fi
 fi
 
 systemctl daemon-reload

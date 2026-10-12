@@ -40,6 +40,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+if [ ! -x /sbin/openrc-run ] || [ ! -d /etc/init.d ]; then
+    echo "ERROR: This script is designed for Alpine Linux with OpenRC." >&2
+    exit 1
+fi
+
 # Optional TierHive variables: cloudflared_name, cloudflared_purge
 cloudflared_name=${cloudflared_name:-cloudflared}
 cloudflared_purge=${cloudflared_purge:-0}
@@ -47,6 +52,7 @@ cloudflared_purge=${cloudflared_purge:-0}
 SVC_FILE="/etc/init.d/${cloudflared_name}"
 CONF_FILE="/etc/conf.d/${cloudflared_name}"
 RUNLEVEL_LINK="/etc/runlevels/default/${cloudflared_name}"
+LOG_FILE="/var/log/${cloudflared_name}.log"
 BIN_PATH="/usr/local/bin/cloudflared"
 
 echo "Uninstalling cloudflared instance '${cloudflared_name}'..."
@@ -65,6 +71,8 @@ if [ -f "$CONF_FILE" ]; then
     rm -f "$CONF_FILE"
     echo "Removed config $CONF_FILE."
 fi
+
+rm -f "$LOG_FILE"
 
 if [ "$cloudflared_purge" = "1" ]; then
     remaining=$(find /etc/init.d -maxdepth 1 -name 'cloudflared*' -type f 2>/dev/null | wc -l)

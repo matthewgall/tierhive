@@ -168,15 +168,30 @@ curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflar
 ### Notes
 
 - The binary is installed to `/usr/local/bin/cloudflared`.
-- Each instance gets its own config at `/etc/default/cloudflared-${cloudflared_name}` and log at `/var/log/cloudflared-${cloudflared_name}.log`.
+- Each instance gets its own config at `/etc/default/${cloudflared_name}` and log at `/var/log/${cloudflared_name}.log`.
 - Upgrades parse the installed version and restart the affected service automatically.
 
 ## `cloudflared-debian/uninstall.sh`
 
-Removes cloudflared and its systemd service.
+Removes a cloudflared tunnel instance by name. By default the shared binary is left in place so other instances continue to work; set `cloudflared_purge=1` to remove the binary as well (only if no other instances remain).
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `cloudflared_name` | `cloudflared` | Name of the instance to remove. |
+| `cloudflared_purge` | `0` | Set to `1` to remove `/usr/local/bin/cloudflared` if no other instances exist. |
+
+### Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/uninstall.sh | sh
+# Remove a single named instance
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/uninstall.sh | \
+  cloudflared_name=cloudflared-web sh
+
+# Remove the default instance and purge the binary if nothing else remains
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/uninstall.sh | \
+  cloudflared_purge=1 sh
 ```
 
 ## `netbird-alpine/run.sh`
