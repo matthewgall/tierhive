@@ -15,6 +15,9 @@ tierhive/
 ├── cloudflared-alpine/
 │   ├── run.sh           # Install cloudflared with an OpenRC service
 │   └── uninstall.sh     # Remove a cloudflared instance
+├── cloudflared-debian/
+│   ├── run.sh           # Install cloudflared with a systemd service
+│   └── uninstall.sh     # Remove cloudflared
 ├── netbird-alpine/
 │   ├── run.sh           # Install Netbird VPN/mesh agent
 │   └── uninstall.sh     # Remove Netbird
@@ -128,6 +131,53 @@ cloudflared_name=cloudflared-web cloudflared_version=2026.7.1 cloudflare_token=Y
 - The service will fail to start with a clear error if `token` is empty in its config file.
 - The script will not overwrite an existing token unless `cloudflare_token` is supplied.
 - The binary is only re-downloaded if it is missing or not the requested version, so re-running the script to add another tunnel is fast.
+
+## `cloudflared-debian/run.sh`
+
+Installs [cloudflared](https://github.com/cloudflare/cloudflared) on Debian/Ubuntu with a systemd service. Equivalent to the Alpine recipe, but uses systemd instead of OpenRC.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `cloudflared_name` | `cloudflared` | Name of this tunnel instance. Each unique name gets its own systemd service and config file. |
+| `cloudflared_version` | `2026.7.2` | cloudflared release version to install. |
+| `cloudflare_token` | *(optional)* | Cloudflare Tunnel token. If set, it is written to `/etc/default/cloudflared-${cloudflared_name}` and the service is started. |
+
+### Usage
+
+```bash
+# Single default tunnel
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
+  cloudflared_version=2026.7.2 cloudflare_token=YOUR_TOKEN sh
+
+# Multiple named tunnels
+# First tunnel
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
+  cloudflared_name=cloudflared-web cloudflare_token=TOKEN_1 sh
+
+# Second tunnel
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
+  cloudflared_name=cloudflared-ssh cloudflare_token=TOKEN_2 sh
+
+# Upgrade
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/run.sh | \
+  cloudflared_version=2026.8.0 sh
+```
+
+### Notes
+
+- The binary is installed to `/usr/local/bin/cloudflared`.
+- Each instance gets its own config at `/etc/default/cloudflared-${cloudflared_name}` and log at `/var/log/cloudflared-${cloudflared_name}.log`.
+- Upgrades parse the installed version and restart the affected service automatically.
+
+## `cloudflared-debian/uninstall.sh`
+
+Removes cloudflared and its systemd service.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-debian/uninstall.sh | sh
+```
 
 ## `netbird-alpine/run.sh`
 
