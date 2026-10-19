@@ -21,6 +21,9 @@ tierhive/
 ├── netbird-alpine/
 │   ├── run.sh           # Install Netbird VPN/mesh agent
 │   └── uninstall.sh     # Remove Netbird
+├── technitium-dns-alpine/
+│   ├── run.sh           # Install Technitium DNS Server
+│   └── uninstall.sh     # Remove Technitium DNS Server
 └── README.md
 ```
 
@@ -43,20 +46,25 @@ The script is idempotent and safe to run multiple times.
 | Variable | Default | Description |
 |---|---|---|
 | `swap_size` | *(required)* | Swap file size in MiB. |
+| `disable_ipv6` | `1` | Set to `0` to keep IPv6 enabled (required for some services, e.g., Technitium DNS Server). |
 
 ### Usage
 
 #### Via curl
 
 ```bash
+# Standard low-RAM optimisation (IPv6 disabled)
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/optimised-alpine/run.sh | swap_size=512 sh
+
+# Keep IPv6 support enabled
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/optimised-alpine/run.sh | disable_ipv6=0 swap_size=512 sh
 ```
 
 #### From file
 
 ```bash
 chmod +x optimised-alpine/run.sh
-swap_size=512 ./optimised-alpine/run.sh
+disable_ipv6=0 swap_size=512 ./optimised-alpine/run.sh
 ```
 
 ### Notes
@@ -64,6 +72,7 @@ swap_size=512 ./optimised-alpine/run.sh
 - The script is POSIX `sh` compatible and does not require Bash.
 - Progress is logged to `/root/recipe.log` and mirrored to stdout.
 - A swap file is created early so memory-heavy steps such as `mkinitfs` have backing swap.
+- Set `disable_ipv6=0` before installing any service that requires IPv6 (e.g., Technitium DNS Server).
 
 ## `cloudflared-alpine/run.sh`
 
@@ -259,6 +268,54 @@ curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflar
 # Remove the default instance and purge the binary if nothing else remains
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/cloudflared-alpine/uninstall.sh | \
   cloudflared_purge=1 sh
+```
+
+## `technitium-dns-alpine/run.sh`
+
+Installs [Technitium DNS Server](https://github.com/TechnitiumSoftware/DnsServer) on Alpine Linux.
+
+Technitium DNS Server requires IPv6 support, so make sure you run `optimised-alpine/run.sh` with `disable_ipv6=0` first.
+
+### What it does
+
+- Installs `aspnetcore10-runtime` and `libcap`.
+- Creates a `dns-server` user/group.
+- Downloads the latest portable build from Technitium's CDN.
+- Extracts it to `/opt/technitium/dns`.
+- Creates `/etc/dns` for persistent config.
+- Installs and enables an OpenRC service with `cap_net_bind_service` so it can bind port 53.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `technitium_url` | latest portable build | URL to the Technitium DNS Server portable tarball. |
+
+### Usage
+
+```bash
+# First, optimise Alpine while keeping IPv6
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/optimised-alpine/run.sh | \
+  disable_ipv6=0 swap_size=512 sh
+
+# Then install Technitium DNS Server
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/technitium-dns-alpine/run.sh | sh
+```
+
+After installation, the web UI is available on port `5380` with default credentials `admin` / `admin`.
+
+### Notes
+
+- The portable build is downloaded from `https://download.technitium.com/dns/DnsServerPortable.tar.gz`.
+- Logs are written to `/var/log/technitium-dns.log`.
+- Config is persisted in `/etc/dns`.
+
+## `technitium-dns-alpine/uninstall.sh`
+
+Removes Technitium DNS Server. Config in `/etc/dns` is preserved.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/technitium-dns-alpine/uninstall.sh | sh
 ```
 
 ## Development

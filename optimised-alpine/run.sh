@@ -52,6 +52,7 @@ if [ ! -x /sbin/openrc-run ] || [ ! -d /etc/init.d ]; then
 fi
 
 # TierHive fills this in at recipe run time.
+disable_ipv6=${disable_ipv6:-1}
 swapSize=${swap_size:-}
 if [ -z "$swapSize" ]; then
     echo "ERROR: swap_size variable is not set." >&2
@@ -185,14 +186,23 @@ backup_file /etc/update-extlinux.conf
 # Remove unneeded modules from the bootloader module list if present.
 sed -i 's/,usb-storage,ext4,ena,gve/,ext4/g' /etc/update-extlinux.conf
 # Ensure kernel options are present; append each only if not already there.
-for opt in ipv6.disable=1 audit=0 nowatchdog; do
+if [ "$disable_ipv6" = "0" ]; then
+    echo "IPv6 support requested; skipping ipv6.disable=1 kernel option."
+    kernel_opts="audit=0 nowatchdog"
+else
+    kernel_opts="ipv6.disable=1 audit=0 nowatchdog"
+fi
+for opt in $kernel_opts; do
     ensure_kernel_opt "$opt" /etc/update-extlinux.conf
 done
 
 # Disable IPv6 sysctl entries so they do not error at boot when IPv6 is disabled
 # at the kernel level.
+# Skip this when disable_ipv6=0 so IPv6 remains usable.
 ipv6_sysctl_file="/usr/lib/sysctl.d/00-alpine.conf"
-if [ -f "$ipv6_sysctl_file" ]; then
+if [ "$disable_ipv6" = "0" ]; then
+    echo "IPv6 support requested; leaving IPv6 sysctl entries unchanged."
+elif [ -f "$ipv6_sysctl_file" ]; then
     backup_file "$ipv6_sysctl_file"
     if grep -qE '^[[:space:]]*net\.ipv6' "$ipv6_sysctl_file"; then
         sed -i '/^[[:space:]]*net\.ipv6/s/^[[:space:]]*/# /' "$ipv6_sysctl_file"
