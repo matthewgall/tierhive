@@ -85,6 +85,9 @@ mkdir -p "$CONF_DIR"
 chown -R dns-server:dns-server "$INSTALL_DIR" "$CONF_DIR"
 chmod 750 "$CONF_DIR"
 
+mkdir -p /var/log/technitium/dns
+chown -R dns-server:dns-server /var/log/technitium /etc/dns
+
 echo "Installing OpenRC service..."
 cat > "$SVC_FILE" << 'EOF'
 #!/sbin/openrc-run
@@ -108,6 +111,11 @@ error_log="/var/log/technitium-dns.log"
 
 depend() {
     need net
+}
+
+start_pre() {
+    mkdir -p /var/log/technitium/dns
+    chown -R dns-server:dns-server /var/log/technitium /etc/dns
 }
 EOF
 chmod +x "$SVC_FILE"
