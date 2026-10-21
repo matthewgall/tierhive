@@ -88,6 +88,9 @@ chmod 750 "$CONF_DIR"
 mkdir -p /var/log/technitium/dns
 chown -R dns-server:dns-server /var/log/technitium /etc/dns
 
+echo "Granting dotnet the capability to bind privileged ports..."
+setcap cap_net_bind_service=+ep /usr/lib/dotnet/dotnet
+
 echo "Installing OpenRC service..."
 cat > "$SVC_FILE" << 'EOF'
 #!/sbin/openrc-run
@@ -99,15 +102,8 @@ directory=/opt/technitium/dns
 command="/usr/bin/dotnet"
 command_args="/opt/technitium/dns/DnsServerApp.dll /etc/dns"
 command_user=dns-server:dns-server
-
-capabilities="^cap_net_bind_service"
-
-supervisor=supervise-daemon
-respawn_delay=10
-respawn_max=0
-
-output_log="/var/log/technitium-dns.log"
-error_log="/var/log/technitium-dns.log"
+command_background=true
+pidfile="/run/technitium-dns.pid"
 
 depend() {
     need net
@@ -129,11 +125,11 @@ fi
 
 echo "Ensuring no stale Technitium DNS Server processes are running..."
 rc-service technitium-dns stop 2>/dev/null || true
-pkill -f "DnsServerApp.dll" 2>/dev/null || true
+pkill -x dotnet 2>/dev/null || true
 sleep 2
 
 echo "Starting technitium-dns..."
-rc-service technitium-dns start 2>/dev/null || true
+rc-service technitium-dns start </dev/null 2>/dev/null || true
 
 # Verify the service is actually listening before declaring success.
 echo "Waiting for Technitium DNS Server to be ready..."
