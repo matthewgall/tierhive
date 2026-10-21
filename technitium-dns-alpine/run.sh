@@ -127,8 +127,31 @@ else
     echo "technitium-dns added to default runlevel."
 fi
 
+echo "Ensuring no stale Technitium DNS Server processes are running..."
+rc-service technitium-dns stop 2>/dev/null || true
+pkill -f "DnsServerApp.dll" 2>/dev/null || true
+sleep 2
+
 echo "Starting technitium-dns..."
-timeout 30 rc-service technitium-dns restart 2>/dev/null || true
+rc-service technitium-dns start 2>/dev/null || true
+
+# Verify the service is actually listening before declaring success.
+echo "Waiting for Technitium DNS Server to be ready..."
+ready=0
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    if netstat -tln 2>/dev/null | grep -qE ":5380"; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+
+if [ "$ready" -eq 1 ]; then
+    echo "Technitium DNS Server is listening on port 5380."
+else
+    echo "Warning: Technitium DNS Server does not appear to be listening on port 5380." >&2
+    echo "Check /var/log/technitium/dns/ for details." >&2
+fi
 
 cat > /root/technitium-dns.info.txt << 'EOF'
 Technitium DNS Server has been installed and enabled.
@@ -145,7 +168,7 @@ Important:
 Service commands:
     rc-service technitium-dns restart
     rc-service technitium-dns status
-    tail -f /var/log/technitium-dns.log
+    tail -f /var/log/technitium/dns/*.log
 EOF
 
 echo "Installation complete."
