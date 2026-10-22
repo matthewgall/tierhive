@@ -24,6 +24,9 @@ tierhive/
 ├── technitium-dns-alpine/
 │   ├── run.sh           # Install Technitium DNS Server
 │   └── uninstall.sh     # Remove Technitium DNS Server
+├── gitea-alpine/
+│   ├── run.sh           # Install Gitea Git server
+│   └── uninstall.sh     # Remove Gitea
 └── README.md
 ```
 
@@ -316,6 +319,56 @@ Removes Technitium DNS Server. Config in `/etc/dns` is preserved.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/technitium-dns-alpine/uninstall.sh | sh
+```
+
+## `gitea-alpine/run.sh`
+
+Installs [Gitea](https://about.gitea.com/) on Alpine Linux with SQLite (no separate database server required).
+
+### What it does
+
+- Downloads the official Gitea binary from GitHub releases.
+- Creates a `git` user and `/var/lib/gitea` data directory.
+- Creates a minimal `/etc/gitea/app.ini` using SQLite.
+- Installs and enables an OpenRC service.
+- Optionally creates an admin user from environment variables.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `gitea_version` | latest GitHub release | Gitea release version. |
+| `gitea_http_port` | `3000` | Web UI and HTTP Git port. |
+| `gitea_ssh_port` | `2222` | Internal SSH port for `git+ssh` (avoid 22 to not conflict with host SSH). |
+| `gitea_domain` | `localhost` | Domain used in URLs. |
+| `gitea_admin_user` | *(optional)* | Admin username to auto-create. |
+| `gitea_admin_password` | *(optional)* | Admin password to auto-create. |
+| `gitea_admin_email` | `admin@example.com` | Admin email address. |
+
+### Usage
+
+```bash
+# Basic install
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/gitea-alpine/run.sh | sh
+
+# With admin user pre-created
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/gitea-alpine/run.sh | \
+  gitea_domain=git.example.com gitea_admin_user=admin \
+  gitea_admin_password='ChangeMe!' sh
+```
+
+After installation, the web UI is available on port `3000`.
+
+### SSH notes
+
+The recipe defaults Gitea SSH to internal port `2222` so it does not conflict with the host SSH on port `22`. Map your external port to internal `2222` at your provider if you want git+ssh access.
+
+## `gitea-alpine/uninstall.sh`
+
+Removes Gitea. Config in `/etc/gitea` and repositories in `/var/lib/gitea` are preserved.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/gitea-alpine/uninstall.sh | sh
 ```
 
 ## Development
