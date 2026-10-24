@@ -52,6 +52,14 @@ rqlite_version=${rqlite_version:-}
 rqlite_http_port=${rqlite_http_port:-4001}
 rqlite_raft_port=${rqlite_raft_port:-4002}
 rqlite_data_dir=${rqlite_data_dir:-/var/lib/rqlite}
+if [ -z "${rqlite_advertise_addr:-}" ]; then
+    rqlite_advertise_addr=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+fi
+if [ -z "$rqlite_advertise_addr" ]; then
+    rqlite_advertise_addr="127.0.0.1"
+fi
+rqlite_http_addr=${rqlite_http_addr:-$rqlite_advertise_addr}
+rqlite_raft_addr=${rqlite_raft_addr:-$rqlite_advertise_addr}
 
 if [ -z "$rqlite_version" ]; then
     DEFAULT_RQLITE_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/rqlite/rqlite/releases/latest 2>/dev/null | sed 's|.*/||')
@@ -115,8 +123,9 @@ download "$DOWNLOAD_URL" "$TMP_DIR/rqlite.tar.gz"
 tar -xzf "$TMP_DIR/rqlite.tar.gz" -C "$TMP_DIR"
 
 for binary in rqlited rqlite rqbench; do
-    if [ -f "$TMP_DIR/$binary" ]; then
-        mv "$TMP_DIR/$binary" "$BIN_DIR/$binary"
+    src=$(find "$TMP_DIR" -maxdepth 2 -type f -name "$binary" | head -n 1)
+    if [ -n "$src" ]; then
+        mv "$src" "$BIN_DIR/$binary"
         chmod +x "$BIN_DIR/$binary"
         echo "Installed $binary to $BIN_DIR/$binary"
     fi
@@ -137,10 +146,12 @@ name="rqlite"
 description="rqlite: lightweight distributed SQL database"
 
 command="$BIN_DIR/rqlited"
-command_args="-http-addr 0.0.0.0:$rqlite_http_port -raft-addr 0.0.0.0:$rqlite_raft_port $DATA_DIR"
+command_args="-http-addr $rqlite_http_addr:$rqlite_http_port -http-adv-addr $rqlite_advertise_addr:$rqlite_http_port -raft-addr $rqlite_raft_addr:$rqlite_raft_port -raft-adv-addr $rqlite_advertise_addr:$rqlite_raft_port $DATA_DIR"
 command_user="rqlite:rqlite"
-command_background=true
-pidfile="/run/rqlite.pid"
+
+supervisor=supervise-daemon
+respawn_delay=10
+respawn_max=0
 
 directory="$DATA_DIR"
 export HOME=$DATA_DIR
@@ -148,6 +159,12 @@ export HOME=$DATA_DIR
 depend() {
     need net
     after firewall
+}
+
+start_pre() {
+    mkdir -p "$DATA_DIR" "$DATA_DIR/extensions"
+    rm -f /run/rqlite.pid
+    chown -R rqlite:rqlite "$DATA_DIR"
 }
 EOF
 chmod +x "$SVC_FILE"
@@ -161,7 +178,10 @@ fi
 
 echo "Ensuring no stale rqlite processes are running..."
 rc-service rqlite stop 2>/dev/null || true
-pkill -x rqlited 2>/dev/null || true
+for pid in $(pidof rqlited 2>/dev/null); do
+    kill -9 "$pid" 2>/dev/null || true
+done
+rm -f /run/rqlite.pid
 sleep 2
 
 echo "Starting rqlite..."

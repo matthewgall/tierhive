@@ -393,6 +393,9 @@ Installs [rqlite](https://github.com/rqlite/rqlite) on Alpine Linux — a lightw
 | `rqlite_version` | latest GitHub release | rqlite release version. |
 | `rqlite_http_port` | `4001` | HTTP API port. |
 | `rqlite_raft_port` | `4002` | Raft cluster port. |
+| `rqlite_advertise_addr` | auto-detected internal IP | Address advertised for Raft clustering. Defaults to the internal IP from `ip route get 1.1.1.1`. |
+| `rqlite_http_addr` | `$rqlite_advertise_addr` | Address the HTTP API binds to. Set to `0.0.0.0` for external access. |
+| `rqlite_raft_addr` | `$rqlite_advertise_addr` | Address the Raft cluster binds to. |
 | `rqlite_data_dir` | `/var/lib/rqlite` | Data directory. |
 
 ### Usage

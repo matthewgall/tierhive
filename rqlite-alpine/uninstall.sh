@@ -49,6 +49,11 @@ echo "Stopping and disabling rqlite..."
 rc-service rqlite stop 2>/dev/null || true
 rc-update del rqlite default 2>/dev/null || true
 
+for pid in $(pidof rqlited 2>/dev/null); do
+    kill -9 "$pid" 2>/dev/null || true
+done
+sleep 1
+
 echo "Removing files..."
 rm -f /etc/init.d/rqlite
 rm -f /etc/runlevels/default/rqlite
