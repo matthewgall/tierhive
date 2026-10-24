@@ -27,6 +27,9 @@ tierhive/
 ├── gitea-alpine/
 │   ├── run.sh           # Install Gitea Git server
 │   └── uninstall.sh     # Remove Gitea
+├── rqlite-alpine/
+│   ├── run.sh           # Install rqlite distributed SQL database
+│   └── uninstall.sh     # Remove rqlite
 └── README.md
 ```
 
@@ -369,6 +372,60 @@ Removes Gitea. Config in `/etc/gitea` and repositories in `/var/lib/gitea` are p
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/gitea-alpine/uninstall.sh | sh
+```
+
+## `rqlite-alpine/run.sh`
+
+Installs [rqlite](https://github.com/rqlite/rqlite) on Alpine Linux — a lightweight, distributed SQL database built on SQLite.
+
+### What it does
+
+- Downloads the official rqlite binary release from GitHub.
+- Creates an `rqlite` user and `/var/lib/rqlite` data directory.
+- Installs the `rqlited` server, `rqlite` CLI, and `rqbench` tools.
+- Installs and enables an OpenRC service.
+- Runs a single-node cluster by default.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `rqlite_version` | latest GitHub release | rqlite release version. |
+| `rqlite_http_port` | `4001` | HTTP API port. |
+| `rqlite_raft_port` | `4002` | Raft cluster port. |
+| `rqlite_data_dir` | `/var/lib/rqlite` | Data directory. |
+
+### Usage
+
+```bash
+# Basic install
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/rqlite-alpine/run.sh | sh
+
+# Custom ports
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/rqlite-alpine/run.sh | \
+  rqlite_http_port=8080 rqlite_raft_port=8081 sh
+```
+
+After installation, the HTTP API is available on port `4001` by default.
+
+### Example
+
+```bash
+curl -XPOST 'http://localhost:4001/db/execute' \
+  -H 'Content-Type: application/json' \
+  -d '["CREATE TABLE foo (id INTEGER PRIMARY KEY, name TEXT)"]'
+
+curl -XPOST 'http://localhost:4001/db/query' \
+  -H 'Content-Type: application/json' \
+  -d '["SELECT * FROM foo"]'
+```
+
+## `rqlite-alpine/uninstall.sh`
+
+Removes rqlite. Config in `/etc/rqlite` and data in `/var/lib/rqlite` are preserved.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/rqlite-alpine/uninstall.sh | sh
 ```
 
 ## Development
