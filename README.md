@@ -30,6 +30,9 @@ tierhive/
 ├── rqlite-alpine/
 │   ├── run.sh           # Install rqlite distributed SQL database
 │   └── uninstall.sh     # Remove rqlite
+├── github-runner-alpine/
+│   ├── run.sh           # Install GitHub Actions self-hosted runner
+│   └── uninstall.sh     # Remove GitHub Actions runner
 └── README.md
 ```
 
@@ -429,6 +432,58 @@ Removes rqlite. Config in `/etc/rqlite` and data in `/var/lib/rqlite` are preser
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/rqlite-alpine/uninstall.sh | sh
+```
+
+## `github-runner-alpine/run.sh`
+
+Installs the official [GitHub Actions self-hosted runner](https://github.com/actions/runner) on Alpine Linux.
+
+### What it does
+
+- Downloads the official runner release from GitHub.
+- Installs musl compatibility and runtime dependencies.
+- Creates a `github-runner` user and `/opt/actions-runner` directory.
+- Configures the runner unattended with your token and URL.
+- Installs and enables an OpenRC service.
+- Adds the runner user to the `docker` group if docker is installed.
+
+### Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `github_url` | *(required)* | Repository or organization URL, e.g., `https://github.com/owner/repo`. |
+| `github_token` | *(required)* | Runner registration token from GitHub. |
+| `github_version` | latest GitHub release | Runner version to install. |
+| `github_runner_name` | `$(hostname)` | Name shown in GitHub. |
+| `github_runner_group` | `default` | Runner group. |
+| `github_labels` | *(optional)* | Comma-separated labels. |
+| `github_runner_dir` | `/opt/actions-runner` | Installation directory. |
+| `github_runner_user` | `github-runner` | User that runs the runner. |
+
+### Usage
+
+```bash
+# Repository runner
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/github-runner-alpine/run.sh | \
+  github_url=https://github.com/owner/repo github_token=YOUR_TOKEN sh
+
+# With labels
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/github-runner-alpine/run.sh | \
+  github_url=https://github.com/owner/repo github_token=YOUR_TOKEN \
+  github_labels=self-hosted,alpine sh
+```
+
+### Notes
+
+- The official runner is built against glibc; the recipe installs `gcompat` for musl compatibility.
+- The runner may take 30–60 seconds to appear online in the GitHub UI after starting.
+
+## `github-runner-alpine/uninstall.sh`
+
+Removes the local runner service and files. The runner may still appear in the GitHub UI until you delete it there.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matthewgall/tierhive/main/github-runner-alpine/uninstall.sh | sh
 ```
 
 ## Development
